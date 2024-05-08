@@ -35,11 +35,11 @@ from loguru import logger
 from backtesting import Backtest, Strategy
 from backtesting.lib import plot_heatmaps
 from bokeh.plotting import output_file, figure, show, ColumnDataSource, curdoc, save
+from bokeh.models import Label
 from bokeh.layouts import row, column
 from bokeh.models import PreText
 
 mp.set_start_method('fork')  # multiprocessing
-
 # data
 # db_name = "/Users/jirka/PycharmProjects/MYProject/mydb.db"
 # name_index = "EURUSD_M1_XTB_2023"intr

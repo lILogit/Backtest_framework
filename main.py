@@ -30,21 +30,19 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 import multiprocessing as mp
-from utils.secrets import credentials
 from datetime import timezone, datetime
 from loguru import logger
-from XTBApi.api import Client
 from backtesting import Backtest, Strategy
 from backtesting.lib import plot_heatmaps
 from bokeh.plotting import output_file, figure, show, ColumnDataSource, curdoc, save
-from bokeh.models import Label
 from bokeh.layouts import row, column
 from bokeh.models import PreText
 
 mp.set_start_method('fork')  # multiprocessing
+
 # data
 # db_name = "/Users/jirka/PycharmProjects/MYProject/mydb.db"
-# name_index = "EURUSD_M1_XTB_2023"
+# name_index = "EURUSD_M1_XTB_2023"intr
 local_time_zone = 'Europe/Prague'
 database = "/Users/jirka/Documents/forex_v1.db"
 maximize_field = 'Equity Final [$]'  # "# Trades" #'Equity Final [$]'
@@ -52,16 +50,16 @@ time_frame = 60  # seconds
 sample_size = 2880  # minutes 43200 = month M1 2880 = 2 days xAPI
 
 item_name = "EURUSD"
-scale = 50
-min_trades = 20
-levels = 4
+scale = 300
+min_trades = 10
+levels = 2
 levels_actual = 2
 
 phi = (1 + math.sqrt(5)) / 2
 d_max_pct = 1 / (phi ** 2)
 database = "/Users/jirka/Documents/forex_v1.db"
-date_from = "\'2023-05-29\'"
-date_to = "\'2023-05-30\'"
+date_from = "\'2023-05-08\'"
+date_to = "\'2023-05-25\'"
 manual_dm = True
 plot_optimize = True
 plot_heatmap = True
@@ -73,20 +71,17 @@ def optim_func(series):
     if series[{}] <= {}: 
         return -1
     else:
-        return series[{}]*series[{}]
-      """.format("'# Trades'", min_trades, "'Win Rate [%]'", "'Return [%]'")  # ,"'# Trades'" )
+        return series[{}]
+      """.format("'# Trades'", min_trades, "'Win Rate [%]'")  # ,"'# Trades'" )
 
 # if (na_filter == True): filter_best = df_tp.loc[((df_tp['tp'] - df_tp['sl']) > 0) & (df_tp['na'] == 0)]
 
 my_code = """
 def optim_func(series):
-    if series[{}] <= {}: 
-        return -1
-    else:
         return series[{}]*series[{}]/100
-      """.format("'# Trades'", min_trades, "'Win Rate [%]'", "'# Trades'")  # ,"'# Trades'" )
+      """.format("'Win Rate [%]'", "'# Trades'")  # ,"'# Trades'" )
 
-exec(my_code2)
+exec(my_code)
 
 """
 STRING_LIST1 = ["EURUSD","USDCHF","GBPUSD","AUDUSD"]
@@ -156,7 +151,7 @@ except:
 
 myList = []
 #                item digits d_min d_max min_size
-myList.append(Item("EURUSD", 5, 30, 60, 30))  # fibo čísla
+myList.append(Item("EURUSD", 5, 20, 80, 20))  # fibo čísla
 myList.append(Item("USDCHF", 5, 36, 54, 36))
 myList.append(Item("AUDUSD", 5, 36, 54, 36))
 myList.append(Item("GBPUSD", 5, 36, 54, 36))
@@ -296,28 +291,6 @@ def get_dm_range(ts):
     return d_range, m_range
 
 
-def plot_price_heat(d, m, heatmap):
-    figure, axis = plt.subplots(1, 2)
-    # For Sine Function
-    all_ = pd.concat([prev_period, last_period])
-    ymin = all_["Low"].min()
-    ymax = all_["High"].max()
-    axis[0].plot(heatmap.values, heatmap.index.get_level_values(1) / 10 ** obj.digits)
-    axis[0].set_title("Heatmap m,values")
-    axis[0].set_ylim(ymin, ymax)
-    axis[1].scatter(prev_period["Close"])
-    axis[1].scatter(last_period["Close"])
-    # d, m max
-    a = slev_levels_single(levels + 1, d / 10 ** obj.digits, m / 10 ** obj.digits)
-    a = np.round(a, obj.digits)
-    for i in a:
-        axis[1].axhline(i)
-    axis[1].set_title("Price and levels")
-    axis[1].set_ylim(ymin, ymax)
-    plt.show()
-    return
-
-
 def plot_heatmap_all(name):
     output_file(name)
     aa = heatmap.to_frame()
@@ -451,9 +424,6 @@ if __name__ == "__main__":
     df_.set_index("Datetime", inplace=True)
     df_ = df_.sort_index()
     df_copy = df_.copy()
-    plt.plot(df_["Close"])
-    plt.show()
-    sys.exit()
 
     # trades dataframe
     # adjust level based on H,L(max,mix) vs a(min max)
@@ -480,28 +450,24 @@ if __name__ == "__main__":
             prev_period["Close"] = prev_period["Close"].values[::-1]
             """
             d, m, _trades, heatmap = Backtest_optimize(prev_period, levels, dm, mm, plot_optimize)
-
             """
             mm = range(105042, 105948, 1)
             dm = range(20,30)
             d, m, _trades, heatmap = Backtest_optimize(prev_period, levels, dm, mm, plot_optimize)
             """
-
-            # plot_price_heat(d, m, heatmap)
-
             if heatmap.max() <= 0:
                 logger.info("Low 'Return [%]': {} skip iteration", heatmap.max())
                 continue
             # save heatmap
-            # filename = "H_"+ item_name + "_" + str(prev_period.index[-1])
-            # filename = filename[:-9] + "_" + str(scale)
-            # np.save(filename + '.npy', heatmap)
+            filename = "H_" + item_name + "_" + str(prev_period.index[-1])
+            filename = filename[:-9] + "_" + str(scale)
+            np.save(filename + '.npy', heatmap)
             # heatmap.to_hdf(filename, key='df', mode='w')
             # heatmap_load = np.load(filename)
             logger.info("Optimized d : {}  m : {}", d, m)
             # backtest data
             # m = prev_period["Close"].iloc[-1] * (10 ** digits)   když do CLOSE!!
-            trades, output = Backtest_dm(last_period, levels_actual, d, m, plot_dm)
+            trades, output = Backtest_dm(last_period, 4, d, m, plot_dm)
             trades["D"] = round(d / 10 ** obj.digits, obj.digits)
             trades["M"] = round(m / 10 ** obj.digits, obj.digits)
             df_trades = df_trades._append(trades)
@@ -516,24 +482,11 @@ if __name__ == "__main__":
     logger.info("Plot final results...")
     _succesful = len(df_trades[(df_trades["PnL"] > 0)])
     _all_orders = len(df_trades)
-    # rozdělit na buy, sell, false buy, sell
     """
     PLOT ALL TRADES AND STATS
     """
 
     df_trades = df_trades.reset_index()
-    df_trades["OrderType"] = 0
-    for i in range(0, len(df_trades)):
-        df_trades["OrderType"] = np.where((df_trades["PnL"] > 0) & (df_trades["ExitPrice"] > df_trades["EntryPrice"]),
-                                          "BUY", df_trades["OrderType"])
-        df_trades["OrderType"] = np.where((df_trades["PnL"] > 0) & (df_trades["ExitPrice"] < df_trades["EntryPrice"]),
-                                          "SELL", df_trades["OrderType"])
-        df_trades["OrderType"] = np.where((df_trades["PnL"] < 0) & (df_trades["ExitPrice"] < df_trades["EntryPrice"]),
-                                          "FALSE BUY", df_trades["OrderType"])
-        df_trades["OrderType"] = np.where((df_trades["PnL"] < 0) & (df_trades["ExitPrice"] > df_trades["EntryPrice"]),
-                                          "FALSE SELL", df_trades["OrderType"])
-    stat_types = df_trades.groupby("OrderType")["OrderType"].count()
-
     df_copy["ExitTime"] = 0
     df_copy["EntryTime"] = 0
     df_copy["EntryPrice"] = 0
@@ -598,8 +551,7 @@ if __name__ == "__main__":
                   f"Levels forecast: {levels} last: {levels_actual} \n" \
                   f"d.interval {obj.d_min} - {obj.d_max} success ord. {_succesful} from {_all_orders} \n" \
                   f"database:  {database} \n" \
-                  f"filter: \n {my_code} \n" \
-                  f"result: \n {stat_types} \n\n"
+                  f"filter: \n {my_code} \n\n"
 
     output_text = item_params + str(stats)
     statistics = PreText(text=output_text, width=600, height=100)
@@ -609,10 +561,6 @@ if __name__ == "__main__":
     # add a circle renderer with a size, color, and alpha
     s1.circle(df_trades["ExitTime"], df_trades["PnL"].cumsum(), size=2, color="navy", alpha=0.5)
 
-    s2 = figure(title='Price', x_axis_label='DateTime', y_axis_label='PnL', x_axis_type='datetime', width=400,
-                height=400)
-    # add a circle renderer with a size, color, and alpha
-    s2.scatter(df_copy.index, df_copy["Close"], size=2, color="navy", alpha=0.5)
     # source = ColumnDataSource(df_trades)
     # del df_trades["level_0"]
     # p.line('ExitTime', 'PnL', source=source)
@@ -631,16 +579,16 @@ if __name__ == "__main__":
     # Signals
     s3 = figure(title='D', x_axis_label='DateTime', y_axis_label='Signal', x_axis_type='datetime',
                 width=400, height=400)
-    s3.line(df_trades["ExitTime"].sort_values(), df_trades["D"].values * 10 ** obj.digits)
+    s3.line(df_trades["ExitTime"].sort_values(), df_trades["D"].values * 10000)
     # s3.line(df_trades["ExitTime"].sort_values(), df_trades["M"])
+
     # Signals
     s4 = figure(title='M', x_axis_label='DateTime', y_axis_label='Signal', x_axis_type='datetime',
                 width=400, height=400)
-    s4.scatter(df_copy.index, df_copy["Close"], size=2, color="red", alpha=0.5)
     s4.line(df_trades["ExitTime"].sort_values(), df_trades["M"].values)
     # s3.line(df_trades["ExitTime"].sort_values(), df_trades["M"])
 
-    show(row(statistics, column(s1, s4, s3), column(s2)))
+    show(row(statistics, column(s1, s3, s4)))
 
     filename = "F" + str(scale) + item_name + str(df_copy.index[-1])
     filename = filename[:-9] + ".csv"
@@ -671,15 +619,11 @@ heatmap_load.index[0][0] #d
 heatmap_load.index[0][1] #m
 heatmap_load.values[4] #value
 
-heatmap_load  = heatmap 
 heatmap_load.index.values
 heatmap_load.index.get_level_values(0)
 heatmap_load.index.get_level_values(1)
 heatmap_load.values
-plt.scatter(heatmap_load.index.get_level_values(0), plt.scatter(heatmap_load.index.get_level_values(0), heatmap_load.index.get_level_values(1), c = heatmap_load.values), c = heatmap_load.values)
-
-heatmap_load = heatmap
-plt.plot(heatmap_load.values,heatmap_load.index.get_level_values(1))
+plt.scatter(heatmap_load.index.get_level_values(0), heatmap_load.index.get_level_values(1), col = heatmap_load.values)
 plt.show()
 
 
@@ -720,84 +664,35 @@ fig.colorbar(sctt, ax = ax, shrink = 0.5, aspect = 5)
 plt.show()
 
 """
-
-figure, axis = plt.subplots(1, 3, figsize=(10, 5))
-
-# For Sine Function
-all_ = pd.concat([prev_period, last_period])
-ymin = all_["Low"].min()
-ymax = all_["High"].max()
-axis[0].plot(heatmap.values, heatmap.index.get_level_values(1) / 10 ** obj.digits)
-axis[0].set_title("Heatmap m,values")
-axis[0].set_ylim(ymin, ymax)
-axis[1].plot(prev_period["Close"])
-axis[1].plot(prev_period["High"])
-axis[1].plot(prev_period["Low"])
-axis[1].plot(last_period["Close"])
-axis[1].plot(last_period["High"])
-axis[1].plot(last_period["Low"])
-# d, m max
-a = slev_levels_single(levels + 1, d / 10 ** obj.digits, m / 10 ** obj.digits)
-a = np.round(a, obj.digits)
-for i in a:
-    axis[1].axhline(i)
-axis[1].set_title("Price and levels")
-axis[1].axhline(m, color="black")
-axis[1].set_ylim(ymin, ymax)
-
-dm, mm = get_dm_range(last_period)
-dm = range(obj.d_min, obj.d_max, 1)
-d, m, _trades, heatmap = Backtest_optimize(last_period, levels, dm, mm, plot_optimize)
-a = slev_levels_single(levels + 1, d / 10 ** obj.digits, m / 10 ** obj.digits)
-a = np.round(a, obj.digits)
-axis[2].plot(heatmap.values, heatmap.index.get_level_values(1) / 10 ** obj.digits, color="red")
-axis[2].set_title("Last Heatmap")
-a = slev_levels_single(levels + 1, d / 10 ** obj.digits, m / 10 ** obj.digits)
-a = np.round(a, obj.digits)
-for i in a:
-    axis[1].axhline(i, color="red")
-axis[2].set_ylim(ymin, ymax)
-axis[2].axhline(m, color="black")
-plt.show()
-
-"""
-
-
-df_heatmap = pd.DataFrame(heatmap.values)
-df_heatmap["d"] = pd.DataFrame(heatmap.index.get_level_values(0))
-df_heatmap["m"] = pd.DataFrame(heatmap.index.get_level_values(1)/10**obj.digits)
-
 fig = figure(x_axis_type='datetime')
-c = np.where((df_copy["Return"] < 0) , "#FF0000", df_copy["Return"])
+c = np.where((df_copy["Return"] < 0), "#FF0000", df_copy["Return"])
 c = np.where((df_copy["Return"] > 0), "#0000FF", c)
-#d = np.where(df_copy["Signal"] == 1, "#0000FF", 0)
+# d = np.where(df_copy["Signal"] == 1, "#0000FF", 0)
 fig.scatter(df_copy.index, df_copy["Close"], size=1)
-fig.scatter(df_copy.index, df_copy["Close"], color=c, size=np.pi * (10 * df_copy["Return"]*100)**2)
+fig.scatter(df_copy.index, df_copy["Close"], color=c, size=np.pi * (10 * df_copy["Return"] * 100) ** 2)
 
-#only hours filter
+# only hours filter
 df2 = df_copy.copy()
-df2.index = pd.to_datetime(df2.index).strftime('%H:%M:%S') #%Y-%m-%d %H:%M:%S
+df2.index = pd.to_datetime(df2.index).strftime('%H:%M:%S')  # %Y-%m-%d %H:%M:%S
 df2 = df2.set_index(pd.DatetimeIndex(df2.index))
 df2 = df2.sort_index()
 
 fig2 = figure(x_axis_type='datetime')
-c = np.where((df2["Return"] < 0) , "#FF0000", df2["Return"])
+c = np.where((df2["Return"] < 0), "#FF0000", df2["Return"])
 c = np.where((df2["Return"] > 0), "#0000FF", c)
-#d = np.where(df_copy["Signal"] == 1, "#0000FF", 0)
-fig2.scatter(df2.index , df2["Close"], color=c, size=np.pi * (10 * df2["Return"]*100)**2)
+# d = np.where(df_copy["Signal"] == 1, "#0000FF", 0)
+fig2.scatter(df2.index, df2["Close"], color=c, size=np.pi * (10 * df2["Return"] * 100) ** 2)
 
-
-daily_stat = df2["Return"].groupby(pd.Grouper(freq = '1H')).sum()
+daily_stat = df2["Return"].groupby(pd.Grouper(freq='1H')).sum()
 c = np.where(daily_stat.values < 0, "#FF0000", "#0000FF")
 fig3 = figure(x_axis_type='datetime', height=250)
-fig3.vbar(x=daily_stat.index, top=daily_stat.values*100, width=10, color=c)
+fig3.vbar(x=daily_stat.index, top=daily_stat.values * 100, width=10, color=c)
 fig3.xgrid.grid_line_color = None
 fig3.y_range.start = -1
 
-show(row(fig,column(fig2,fig3)))
+show(row(fig, column(fig2, fig3)))
 
-
-
+"""
 from itertools import combinations
 param_combinations = combinations(heatmap.index.names, 2)
 dfs = [heatmap.groupby(list(dims)).agg("max").to_frame(name='_Value')
